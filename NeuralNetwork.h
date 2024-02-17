@@ -10,9 +10,9 @@ using namespace std;
 
 class NeuralNetwork {
 public:
-    vector<float> inputLayer;
-    vector<float> outputLayer;
-    vector<float> hiddenLayer; // one hidden layer for simple neural network
+    int numberInputLayerNodes;
+    int numberOutputLayerNodes;
+    int numberHiddenLayerNodes; // one hidden layer for simple neural network
 
     vector<vector<float>> trainX;
     vector<vector<float>> trainY;
@@ -22,26 +22,41 @@ public:
     vector<vector<float>> W2;
     vector<float> B2;
 
-    int iteration;
+    vector<float> A1;
+    vector<float> Z1;
+    vector<float> A2;
+    vector<float> Z2;
+
+    int trainingIndex = 0;
+    float learningRate = 0.1;
 public:
     void initParams();
-    void increaseIteration();
+    void nextTrainingIndex();
+    void resetTrainingIndex();
 
 public: // activation functions
-    void reLU(vector<float>& inputs);
-    void softmax(vector<float>& inputs);
-    void sigmoid(vector<float> &inputs);
+    vector<float> softmax(vector<float>& inputs);
+    vector<float> sigmoid(vector<float> &inputs);
 
 public: // error functions
-    float crossEntropy();
     float meanSquaredError();
 
 public: // back propagation
-    void calculateOutputDelta(vector<float>& delta);
-    void calculateHiddenDelta(vector<float>& delta);
+    void backPropagation();
+    vector<float> outputLayerDelta();
+
+    vector<vector<float>> hiddenLayerWeightsDerivative();
+
+    vector<float> hiddenLayerDelta();
+
+    vector<vector<float>> inputLayerWeightsDerivative();
+
+    void updateParameters();
+
+    void gradientDescent(int steps);
 
 public: // forward propagation
-    void dotProduct(vector<float>& inputs, vector<vector<float>>& weights, vector<float>& bias, vector<float>& result);
+    vector<float> dotProduct(vector<float>& inputs, vector<vector<float>>& weights, vector<float>& bias);
     void forwardPropagation();
 
 public:
