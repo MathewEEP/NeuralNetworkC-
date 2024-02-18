@@ -41,7 +41,8 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix
 
-testX, testY, trainX, trainY = pd.read_csv("testX.csv"), pd.read_csv("testY.csv"), pd.read_csv("trainX.csv"), pd.read_csv("trainY.csv")
+testX, testY, trainX, trainY = pd.read_csv("data/testX.csv"), pd.read_csv("data/testY.csv"), pd.read_csv(
+    "data/trainX.csv"), pd.read_csv("data/trainY.csv")
 
 clf = MLPClassifier(hidden_layer_sizes=(100), max_iter=50,activation = 'relu',solver='adam',random_state=1)
 clf.fit(trainX, trainY.values.ravel())

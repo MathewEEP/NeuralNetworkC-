@@ -49,13 +49,6 @@ cmake_ninja_workdir = /home/mathew/CLionProjects/NeuralNetwork/cmake-build-debug
 
 build cmake_object_order_depends_target_NeuralNetwork: phony || CMakeFiles/NeuralNetwork.dir
 
-build CMakeFiles/NeuralNetwork.dir/NeuralNetwork.cpp.o: CXX_COMPILER__NeuralNetwork_unscanned_Debug /home/mathew/CLionProjects/NeuralNetwork/NeuralNetwork.cpp || cmake_object_order_depends_target_NeuralNetwork
-  DEP_FILE = CMakeFiles/NeuralNetwork.dir/NeuralNetwork.cpp.o.d
-  FLAGS = -g -fdiagnostics-color=always
-  INCLUDES = -I/opt/rocm/include
-  OBJECT_DIR = CMakeFiles/NeuralNetwork.dir
-  OBJECT_FILE_DIR = CMakeFiles/NeuralNetwork.dir
-
 build CMakeFiles/NeuralNetwork.dir/main.cpp.o: CXX_COMPILER__NeuralNetwork_unscanned_Debug /home/mathew/CLionProjects/NeuralNetwork/main.cpp || cmake_object_order_depends_target_NeuralNetwork
   DEP_FILE = CMakeFiles/NeuralNetwork.dir/main.cpp.o.d
   FLAGS = -g -fdiagnostics-color=always
@@ -71,7 +64,7 @@ build CMakeFiles/NeuralNetwork.dir/main.cpp.o: CXX_COMPILER__NeuralNetwork_unsca
 #############################################
 # Link the executable NeuralNetwork
 
-build NeuralNetwork: CXX_EXECUTABLE_LINKER__NeuralNetwork_Debug CMakeFiles/NeuralNetwork.dir/NeuralNetwork.cpp.o CMakeFiles/NeuralNetwork.dir/main.cpp.o
+build NeuralNetwork: CXX_EXECUTABLE_LINKER__NeuralNetwork_Debug CMakeFiles/NeuralNetwork.dir/main.cpp.o
   FLAGS = -g
   OBJECT_DIR = CMakeFiles/NeuralNetwork.dir
   POST_BUILD = :

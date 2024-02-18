@@ -23,7 +23,7 @@ const double leakyReLUMultiplier = 0.01;
 
 void ReadData(string filenameX, string filenameY, vector<vector<double>>& X, vector<vector<double>>& Y) {
     ifstream src;
-    src.open("/home/mathew/CLionProjects/NeuralNetwork/" + filenameX);
+    src.open("/home/mathew/CLionProjects/NeuralNetwork/data/" + filenameX);
     string value;
 
     getline(src, value);
@@ -43,7 +43,7 @@ void ReadData(string filenameX, string filenameY, vector<vector<double>>& X, vec
     }
     src.close();
 
-    src.open("/home/mathew/CLionProjects/NeuralNetwork/" + filenameY);
+    src.open("/home/mathew/CLionProjects/NeuralNetwork/data/" + filenameY);
 //    printf("IS OPEN %B\n", src.is_open());
     getline(src, value);
     row = 0;
@@ -51,6 +51,59 @@ void ReadData(string filenameX, string filenameY, vector<vector<double>>& X, vec
         Y[row][0] = stod(value);
 //        printf("%f ", stod(value));
         row += 1;
+    }
+    src.close();
+}
+
+void ReadBias(string filename, vector<double>& bias) {
+    ifstream src;
+    src.open("/home/mathew/CLionProjects/NeuralNetwork/models/" + filename);
+    string value;
+    getline(src, value);
+    stringstream input(value);
+    int idx = 0;
+    while (getline(input, value, ',')) {
+        bias[idx] = stod(value);
+//        printf("VALUE %f %f %d\n", stod(value), bias[idx], idx);
+        idx += 1;
+    }
+    src.close();
+}
+
+void SaveBias(string filename, vector<double>& bias) {
+    ofstream src;
+    src.open("/home/mathew/CLionProjects/NeuralNetwork/models/" + filename);
+    for (int i = 0; i < bias.size(); i++) {
+        src << bias[i] << ",";
+    }
+    src.close();
+}
+
+void ReadWeights(string filename, vector<vector<double>>& weights) {
+    ifstream src;
+    src.open("/home/mathew/CLionProjects/NeuralNetwork/models/" + filename);
+    string value;
+    int row = 0;
+    while (getline(src, value)) {
+        stringstream input(value);
+        int idx = 0;
+        while (getline(input, value, ',')) {
+            weights[row][idx] = stod(value);
+//        printf("VALUE %f %f %d\n", stod(value), bias[idx], idx);
+            idx += 1;
+        }
+    }
+    src.close();
+}
+
+void SaveWeights(string filename, vector<vector<double>>& weights) {
+    ofstream src;
+    src.open("/home/mathew/CLionProjects/NeuralNetwork/models/" + filename);
+    for (int i = 0; i < weights.size(); i++) {
+        for (int j = 0; j < weights[i].size(); j++) {
+            src << weights[i][j] << ",";
+        }
+        src << "\n";
     }
     src.close();
 }
@@ -67,71 +120,7 @@ double dLeakyReLU(double x) {
     return leakyReLUMultiplier;
 }
 
-int main() {
-    const double learningRate = 0.001f;
-    vector<double> hiddenLayer(numHiddenNodes);
-    vector<double> outputLayer(numOutputs);
-
-    vector<double> hiddenLayerBias(numHiddenNodes);
-    vector<double> outputLayerBias(numOutputs);
-
-    vector<vector<double>> hiddenWeights(numInputs, vector<double>(numHiddenNodes));
-    vector<vector<double>> outputWeights(numHiddenNodes, vector<double>(numOutputs));
-
-    vector<vector<double>> trainX(numTrainingSets, vector<double>(numInputs));
-    vector<vector<double>> trainY(numTrainingSets, vector<double>(numOutputs));
-    printf("%zu %zu", trainY.size(), trainY[0].size());
-
-    vector<vector<double>> testX(numTestingSets, vector<double>(numInputs));
-    vector<vector<double>> testY(numTestingSets, vector<double>(numOutputs));
-
-    ReadData("trainX.csv", "trainY.csv", trainX, trainY);
-    ReadData("testX.csv", "testY.csv", testX, testY);
-
-    const unsigned int seed = time(nullptr);
-    mt19937_64 rng(seed);
-
-    uniform_real_distribution<float> unif(0.0, 1.0);
-
-    for (int i = 0; i < numInputs; i++) {
-        for (int j = 0; j < numHiddenNodes; j++) {
-            hiddenWeights[i][j] = unif(rng);
-        }
-    }
-
-    for (int i = 0; i < numHiddenNodes; i++) {
-        for (int j = 0; j < numOutputs; j++) {
-            outputWeights[i][j] = unif(rng);
-        }
-    }
-
-    for (int j = 0; j < numOutputs; j++) {
-        outputLayerBias[j] = unif(rng);
-    }
-
-    for (int j = 0; j < numOutputs; j++) {
-        hiddenLayerBias[j] = unif(rng);
-    }
-//
-//    ofstream myfile;
-//    myfile.open("/home/mathew/CLionProjects/NeuralNetwork/example.txt");
-//    ofstream myfile2;
-//    myfile2.open("/home/mathew/CLionProjects/NeuralNetwork/example2.txt");
-//
-//    for (int i = 0; i < trainY.size(); i++) {
-//        myfile << trainY[i][0] << " ";
-//        for (int j = 0; j < trainX[0].size(); j++) {
-//            myfile2 << trainX[i][j] << " ";
-//
-//        }
-//        myfile << "\n";
-//        myfile2 << "\n";
-//    }
-//    myfile.close();
-//    myfile2.close();
-
-    int epochs = 50;
-
+void train(int epochs, double learningRate, vector<double>& hiddenLayerBias, vector<double>& outputLayerBias, vector<vector<double>>& trainX, vector<vector<double>>& trainY, vector<vector<double>>& hiddenWeights, vector<vector<double>>& outputWeights, vector<double> hiddenLayer, vector<double> outputLayer) {
     for (int epoch = 0; epoch < epochs; epoch++) {
         double accuracy = 0;
         for (int x = 0; x < numTrainingSets; x++) {
@@ -191,75 +180,132 @@ int main() {
                 }
             }
 
-            // calculate accuracy
-            for (int j = 0; j < numHiddenNodes; j++) {
-                double activation = hiddenLayerBias[j];
-                for (int k = 0; k < numInputs; k++) {
-                    activation += trainX[x][k] * hiddenWeights[k][j]; // dot product
-                }
-                hiddenLayer[j] = leakyReLU(activation);
-            }
-
-            for (int j = 0; j < numOutputs; j++) {
-                double activation = outputLayerBias[j];
-                for (int k = 0; k < numHiddenNodes; k++) {
-                    activation += hiddenLayer[k] * outputWeights[k][j]; // dot product
-                }
-                outputLayer[j] = leakyReLU(activation);
-                if (outputLayer[j] > 0.5f) {
-                    outputLayer[j] = 1.0f;
-                }
-                else {
-                    outputLayer[j] = 0.0f;
-                }
-                if (outputLayer[j] == trainY[x][j]) accuracy++;
-            }
+//            // calculate accuracy
+//            for (int j = 0; j < numHiddenNodes; j++) {
+//                double activation = hiddenLayerBias[j];
+//                for (int k = 0; k < numInputs; k++) {
+//                    activation += trainX[x][k] * hiddenWeights[k][j]; // dot product
+//                }
+//                hiddenLayer[j] = leakyReLU(activation);
+//            }
+//
+//            for (int j = 0; j < numOutputs; j++) {
+//                double activation = outputLayerBias[j];
+//                for (int k = 0; k < numHiddenNodes; k++) {
+//                    activation += hiddenLayer[k] * outputWeights[k][j]; // dot product
+//                }
+//                outputLayer[j] = leakyReLU(activation);
+//                if (outputLayer[j] > 0.5f) {
+//                    outputLayer[j] = 1.0f;
+//                }
+//                else {
+//                    outputLayer[j] = 0.0f;
+//                }
+//                if (outputLayer[j] == trainY[x][j]) accuracy++;
+//            }
 
         }
-        printf("Epoch %d\tCorrect %f\tAccuracy %f\n", epoch, accuracy, accuracy/numTrainingSets);
+        printf("Epoch %d\n", epoch);
     }
+    SaveBias("1H100N200E/hiddenLayerBias.txt", hiddenLayerBias);
+    SaveBias("1H100N200E/outputLayerBias.txt", outputLayerBias);
 
-    int correct = 0;
-    // testing
-//    ofstream myfile;
-//    myfile.open("/home/mathew/CLionProjects/NeuralNetwork/example.txt");
+    SaveWeights("1H100N200E/hiddenWeights.txt", hiddenWeights);
+    SaveWeights("1H100N200E/outputWeights.txt", outputWeights);
+}
 
-    for (int x = 0; x < numTestingSets; x++) {
+void init_parameters(vector<vector<double>>& hiddenWeights, vector<vector<double>>& outputWeights, vector<double>& hiddenLayerBias, vector<double>& outputLayerBias) {
+    const unsigned int seed = time(nullptr);
+    mt19937_64 rng(seed);
 
+    uniform_real_distribution<float> unif(0.0, 1.0);
 
-        // forward prop
+    for (int i = 0; i < numInputs; i++) {
         for (int j = 0; j < numHiddenNodes; j++) {
-            double activation = hiddenLayerBias[j];
-            for (int k = 0; k < numInputs; k++) {
-                activation += testX[x][k] * hiddenWeights[k][j]; // dot product
-//                myfile << hiddenWeights[k][j] << " ";
-            }
-//            myfile << "\n";
-            hiddenLayer[j] = leakyReLU(activation);
-        }
-//        myfile.close();
-
-        for (int j = 0; j < numOutputs; j++) {
-            double activation = outputLayerBias[j];
-            for (int k = 0; k < numHiddenNodes; k++) {
-                activation += hiddenLayer[k] * outputWeights[k][j]; // dot product
-            }
-            outputLayer[j] = leakyReLU(activation);
-//            printf("final activation %f\n", activation);
-            if (outputLayer[j] > 0.5f) { // argmax
-                outputLayer[j] = 1.0f;
-            }
-            else {
-                outputLayer[j] = 0.0f;
-            }
-        }
-
-        for (int j = 0; j < numOutputs; j++) {
-            if (outputLayer[0] == trainY[x][0]) {
-                correct++;
-            }
+            hiddenWeights[i][j] = unif(rng);
         }
     }
-    printf("Correct %d out of %d", correct, numTestingSets);
+
+    for (int i = 0; i < numHiddenNodes; i++) {
+        for (int j = 0; j < numOutputs; j++) {
+            outputWeights[i][j] = unif(rng);
+        }
+    }
+
+    for (int j = 0; j < numOutputs; j++) {
+        outputLayerBias[j] = unif(rng);
+    }
+
+    for (int j = 0; j < numHiddenNodes; j++) {
+        hiddenLayerBias[j] = unif(rng);
+    }
+}
+
+int main() {
+    const double learningRate = 0.001f;
+    vector<double> hiddenLayer(numHiddenNodes);
+    vector<double> outputLayer(numOutputs);
+
+    vector<double> hiddenLayerBias(numHiddenNodes);
+    vector<double> outputLayerBias(numOutputs);
+
+    vector<vector<double>> hiddenWeights(numInputs, vector<double>(numHiddenNodes));
+    vector<vector<double>> outputWeights(numHiddenNodes, vector<double>(numOutputs));
+
+    vector<vector<double>> trainX(numTrainingSets, vector<double>(numInputs));
+    vector<vector<double>> trainY(numTrainingSets, vector<double>(numOutputs));
+//    printf("%zu %zu", trainY.size(), trainY[0].size());
+
+    vector<vector<double>> testX(numTestingSets, vector<double>(numInputs));
+    vector<vector<double>> testY(numTestingSets, vector<double>(numOutputs));
+
+    ReadData("trainX.csv", "trainY.csv", trainX, trainY);
+    ReadData("testX.csv", "testY.csv", testX, testY);
+
+    init_parameters(hiddenWeights, outputWeights, hiddenLayerBias, outputLayerBias);
+    train(50, learningRate, hiddenLayerBias, outputLayerBias, trainX, trainY, hiddenWeights, outputWeights, hiddenLayer, outputLayer);
+//
+//    int correct = 0;
+//    // testing
+////    ofstream myfile;
+////    myfile.open("/home/mathew/CLionProjects/NeuralNetwork/example.txt");
+//
+//    for (int x = 0; x < numTestingSets; x++) {
+//
+//
+//        // forward prop
+//        for (int j = 0; j < numHiddenNodes; j++) {
+//            double activation = hiddenLayerBias[j];
+//            for (int k = 0; k < numInputs; k++) {
+//                activation += testX[x][k] * hiddenWeights[k][j]; // dot product
+////                myfile << hiddenWeights[k][j] << " ";
+//            }
+////            myfile << "\n";
+//            hiddenLayer[j] = leakyReLU(activation);
+//        }
+////        myfile.close();
+//
+//        for (int j = 0; j < numOutputs; j++) {
+//            double activation = outputLayerBias[j];
+//            for (int k = 0; k < numHiddenNodes; k++) {
+//                activation += hiddenLayer[k] * outputWeights[k][j]; // dot product
+//            }
+//            outputLayer[j] = leakyReLU(activation);
+////            printf("final activation %f\n", activation);
+//            if (outputLayer[j] > 0.5f) { // argmax
+//                outputLayer[j] = 1.0f;
+//            }
+//            else {
+//                outputLayer[j] = 0.0f;
+//            }
+//        }
+//
+//        for (int j = 0; j < numOutputs; j++) {
+//            if (outputLayer[0] == trainY[x][0]) {
+//                correct++;
+//            }
+//        }
+//    }
+//    printf("Correct %d out of %d", correct, numTestingSets);
 }
 

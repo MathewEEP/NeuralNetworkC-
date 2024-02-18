@@ -6,8 +6,6 @@ set(CFLAGS -D__HIP_PLATFORM_AMD__)
 set(CXXFLAGS D__HIP_PLATFORM_AMD__)
 
 add_executable(NeuralNetwork
-        NeuralNetwork.cpp
-        NeuralNetwork.h
         main.cpp
 )
 
