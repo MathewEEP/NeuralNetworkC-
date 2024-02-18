@@ -28,7 +28,6 @@ public:
     vector<float> Z2;
 
     int trainingIndex = 0;
-    float learningRate = 0.1;
 public:
     void initParams();
     void nextTrainingIndex();
@@ -51,16 +50,20 @@ public: // back propagation
 
     vector<vector<float>> inputLayerWeightsDerivative();
 
-    void updateParameters();
+    void updateParameters(float learningRate);
 
-    void gradientDescent(int steps);
 
 public: // forward propagation
     vector<float> dotProduct(vector<float>& inputs, vector<vector<float>>& weights, vector<float>& bias);
     void forwardPropagation();
 
 public:
-    NeuralNetwork();
+    void gradientDescent(int steps, float learningRate);
+
+    vector<float> forwardPropagation(vector<float> &input); // to test user input
+
+public:
+    NeuralNetwork(vector<vector<float>> trainX, vector<vector<float>> trainY, int numberHiddenLayerNodes);
 };
 
 

@@ -5,28 +5,112 @@
 #include <cmath>
 #include <random>
 #include "NeuralNetwork.h"
+#include <fstream>
+#include <iterator>
+#include <sstream>
+
+void ReadData(int rows, int columns, vector<vector<float>>& trainX, vector<vector<float>>& trainY, int rowLimit, vector<vector<float>>& testX, vector<vector<float>>& testY) {
+    ifstream src;
+    src.open("/home/mathew/CLionProjects/NeuralNetwork/trainX.csv");
+    string value;
+    getline(src, value);
+    int idx = 0;
+    int row = 0;
+    while (getline(src, value)) {
+        stringstream input(value);
+        while (idx < columns) {
+            getline(input, value, ',');
+
+            if (row > rowLimit) { // take last rows as testX
+                testX[rows - row][idx] = stof(value);
+            }
+            else {
+                trainX[row][idx] = stof(value);
+            }
+            idx += 1;
+        }
+        idx = 0;
+        row += 1;
+    }
+    src.close();
+
+    src.open("/home/mathew/CLionProjects/NeuralNetwork/trainY.csv");
+    getline(src, value);
+    row = 0;
+    while (getline(src, value)) {
+        if (row > rowLimit) { // take last rows as testX
+            testY[rows - row][0] = stof(value);
+        }
+        else {
+            trainY[row][0] = stof(value);
+        }
+        trainY[row][0] = stof(value);
+        row += 1;
+    }
+    src.close();
+
+//    ofstream myfile;
+//    myfile.open("/home/mathew/CLionProjects/NeuralNetwork/example.txt");
+//
+//    for (int i = 0; i < 30; i++) {
+//        myfile << trainY[i][0] << " ";
+////        for (int j = 0; j < columns; j++) {
+////            myfile << trainY[i][j] << " ";
+////
+////        }
+//        myfile << "\n";
+//    }
+//    myfile.close();
+}
 
 int main() {
-    NeuralNetwork network;
+
 //    network.forwardPropagation();
 //    network.outputLayerDelta();
 //    network.hiddenLayerWeightsDerivative();
 //    network.hiddenLayerDelta();
-    network.gradientDescent(1000);
+//    network.gradientDescent(1000);
+    int rows = 28638; // there are 28638 rows in the trainX csv file. save last 138 for test
+    int columns = 26;
+
+    vector<vector<float>> trainX = vector<vector<float>>(rows, vector<float>(columns, 1));
+    vector<vector<float>> trainY = vector<vector<float>>(rows, vector<float>(1, 1));
+
+    int testSize = 138; // saving last 138 for test
+    vector<vector<float>> testX = vector<vector<float>>(testSize, vector<float>(columns, 1));
+    vector<vector<float>> testY = vector<vector<float>>(testSize, vector<float>(1, 1));
+    ReadData(rows, columns, trainX, trainY, rows - testSize, testX, testY);
+
+    NeuralNetwork network(trainX, trainY, 10);
+    network.gradientDescent(200, 0.05);
+    int correct = 0;
+    for (int i = 0; i < testSize; i++) {
+        vector<float> pred = network.forwardPropagation(testX[i]);
+        if (pred[0] > 0.5) { // arg max
+            pred[0] = 1.0f;
+        }
+        else {
+            pred[0] = 0.0f;
+        }
+        if (pred[0] == testY[i][0]) correct += 1;
+    }
+    float percentage = (100 * correct) / (correct + testSize);
+    printf("CORRECT %d OUT OF %d, ACCURACY %f", correct, testSize, percentage);
 }
 
-NeuralNetwork::NeuralNetwork() {
-    this->numberInputLayerNodes = 5;
-    this->numberOutputLayerNodes = 5;
-    this->numberHiddenLayerNodes = 10;
+
+NeuralNetwork::NeuralNetwork(vector<vector<float>> trainX, vector<vector<float>> trainY, int numberHiddenLayerNodes) {
+    this->numberInputLayerNodes = trainX[0].size();
+    this->numberOutputLayerNodes = trainY[0].size();
+    this->numberHiddenLayerNodes = numberHiddenLayerNodes;
 
     this->W1 = vector<vector<float>>(numberHiddenLayerNodes, vector<float>(numberInputLayerNodes, 1));
     this->B1 = vector<float>(numberHiddenLayerNodes);
     this->W2 = vector<vector<float>>(numberOutputLayerNodes, vector<float>(numberHiddenLayerNodes, 1));
     this->B2 = vector<float>(numberOutputLayerNodes);
 
-    this->trainX = { {0.01, 0.02, 0.03, 0.04, 0.05} };
-    this->trainY = { {0, 0, 0, 0, 1} };
+    this->trainX = trainX;
+    this->trainY = trainY;
 
     this->initParams();
 };
@@ -104,7 +188,7 @@ void NeuralNetwork::forwardPropagation() {
     this->A1 = this->sigmoid(Z1);
 
     this->Z2 = this->dotProduct(Z1, this->W2, this->B2);
-    this->A2 = this->softmax(Z2);
+    this->A2 = this->sigmoid(Z2); // was using softmax, but since there is only one output, we cannot take the error cost
 }
 
 vector<float> NeuralNetwork::outputLayerDelta() {
@@ -162,7 +246,7 @@ vector<vector<float>> NeuralNetwork::inputLayerWeightsDerivative() {
     return dW1;
 }
 
-void NeuralNetwork::updateParameters() {
+void NeuralNetwork::updateParameters(float learningRate) {
     vector<vector<float>> inputLayerWeightsDerivative = this->inputLayerWeightsDerivative();
     for (int i = 0; i < W1.size(); i++) {
         for (int j = 0; j < W1[i].size(); j++) {
@@ -186,17 +270,25 @@ void NeuralNetwork::updateParameters() {
     }
 }
 
-void NeuralNetwork::gradientDescent(int steps) {
+vector<float> NeuralNetwork::forwardPropagation(vector<float>& input) {
+    this->Z1 = this->dotProduct(input, this->W1, this->B1);
+    this->A1 = this->sigmoid(Z1);
+
+    this->Z2 = this->dotProduct(Z1, this->W2, this->B2);
+    this->A2 = this->sigmoid(Z2);
+    return this->A2;
+}
+
+void NeuralNetwork::gradientDescent(int steps, float learningRate) {
     for (int i = 0; i < steps; i++) {
-        for (int j = 0; j < this->trainX.size(); j++) {
+        for (int j = 0; j < 5; j++) { // this->trainX.size()
             this->forwardPropagation();
-            this->updateParameters();
-            if (i % 50 == 0) {
-                printf("Iteration %d, Error %f\n", i, this->meanSquaredError());
-            }
+            this->updateParameters(learningRate);
             this->nextTrainingIndex();
         }
         this->resetTrainingIndex();
+        if (i % 50 == 0) {
+            printf("Iteration %d, Error %f\n", i, this->meanSquaredError());
+        }
     }
 }
-// followed https://www.youtube.com/watch?v=w8yWXqWQYmU
