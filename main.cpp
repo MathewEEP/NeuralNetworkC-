@@ -1,20 +1,25 @@
 //
 // Created by mathew on 2/17/24.
-//
-#include <stdlib.h>
-#include <stdio.h>
+// Followed tutorial https://www.youtube.com/watch?v=LA4I3cWkp1E
+// http://galaxy.agh.edu.pl/~vlsi/AI/backp_t_en/backprop.html
+
+#include <cstdio>
 #include <cmath>
 #include <fstream>
 #include <iterator>
 #include <sstream>
 #include <vector>
+#include <random>
+
 using namespace std;
 
 const int numInputs = 26;
-const int numHiddenNodes = 200;
+const int numHiddenNodes = 100;
 const int numOutputs = 1;
 const int numTrainingSets = 22910;
 const int numTestingSets = 5728;
+
+const double leakyReLUMultiplier = 0.01;
 
 void ReadData(string filenameX, string filenameY, vector<vector<double>>& X, vector<vector<double>>& Y) {
     ifstream src;
@@ -52,11 +57,18 @@ void ReadData(string filenameX, string filenameY, vector<vector<double>>& X, vec
 
 double sigmoid(double x) { return (1 / (1 + exp(-x))); }
 double dSigmoid(double x) { return x * (1 - x); }
-
-double init_weights() { return ((double)rand()) / ((double)RAND_MAX); }
+double leakyReLU(double x) {
+    return max(leakyReLUMultiplier * x, x);
+}
+double dLeakyReLU(double x) {
+    if (x > 0.0f) {
+        return 1;
+    }
+    return leakyReLUMultiplier;
+}
 
 int main() {
-    const double learningRate = 0.05f;
+    const double learningRate = 0.001f;
     vector<double> hiddenLayer(numHiddenNodes);
     vector<double> outputLayer(numOutputs);
 
@@ -75,6 +87,31 @@ int main() {
 
     ReadData("trainX.csv", "trainY.csv", trainX, trainY);
     ReadData("testX.csv", "testY.csv", testX, testY);
+
+    const unsigned int seed = time(nullptr);
+    mt19937_64 rng(seed);
+
+    uniform_real_distribution<float> unif(0.0, 1.0);
+
+    for (int i = 0; i < numInputs; i++) {
+        for (int j = 0; j < numHiddenNodes; j++) {
+            hiddenWeights[i][j] = unif(rng);
+        }
+    }
+
+    for (int i = 0; i < numHiddenNodes; i++) {
+        for (int j = 0; j < numOutputs; j++) {
+            outputWeights[i][j] = unif(rng);
+        }
+    }
+
+    for (int j = 0; j < numOutputs; j++) {
+        outputLayerBias[j] = unif(rng);
+    }
+
+    for (int j = 0; j < numOutputs; j++) {
+        hiddenLayerBias[j] = unif(rng);
+    }
 //
 //    ofstream myfile;
 //    myfile.open("/home/mathew/CLionProjects/NeuralNetwork/example.txt");
@@ -93,27 +130,7 @@ int main() {
 //    myfile.close();
 //    myfile2.close();
 
-    for (int i = 0; i < numInputs; i++) {
-        for (int j = 0; j < numHiddenNodes; j++) {
-            hiddenWeights[i][j] = init_weights();
-        }
-    }
-
-    for (int i = 0; i < numHiddenNodes; i++) {
-        for (int j = 0; j < numOutputs; j++) {
-            outputWeights[i][j] = init_weights();
-        }
-    }
-
-    for (int j = 0; j < numOutputs; j++) {
-        outputLayerBias[j] = init_weights();
-    }
-
-    for (int j = 0; j < numOutputs; j++) {
-        hiddenLayerBias[j] = init_weights();
-    }
-
-    int epochs = 20;
+    int epochs = 50;
 
     for (int epoch = 0; epoch < epochs; epoch++) {
         double accuracy = 0;
@@ -124,7 +141,7 @@ int main() {
                 for (int k = 0; k < numInputs; k++) {
                     activation += trainX[x][k] * hiddenWeights[k][j]; // dot product
                 }
-                hiddenLayer[j] = sigmoid(activation);
+                hiddenLayer[j] = leakyReLU(activation);
             }
 
             for (int j = 0; j < numOutputs; j++) {
@@ -132,7 +149,7 @@ int main() {
                 for (int k = 0; k < numHiddenNodes; k++) {
                     activation += hiddenLayer[k] * outputWeights[k][j]; // dot product
                 }
-                outputLayer[j] = sigmoid(activation);
+                outputLayer[j] = leakyReLU(activation); // was sigmoid
             }
 
 //            printf("Output: %g\tPredicted Output: %g\n", outputLayer[x], trainY[x][0]);
@@ -142,7 +159,7 @@ int main() {
             for (int j = 0; j < numOutputs; j++) {
                 double error = (trainY[x][j] - outputLayer[j]);
 //                printf("ERROR %f\t", error);
-                deltaOutput[j] = error; // * dSigmoid(outputLayer[j])
+                deltaOutput[j] = error * dLeakyReLU(outputLayer[j]); // * dSigmoid(outputLayer[j]) (DEAD NEURON.... https://www.linkedin.com/advice/3/how-do-you-debug-dead-neurons-neural-network-gqxxc)
 //                printf("ADD %f %f %f\n", trainY[x][j], outputLayer[j], dSigmoid(outputLayer[j]));
             }
 
@@ -154,7 +171,7 @@ int main() {
 //                    printf("%f %f\n", deltaOutput[k], outputWeights[j][k]);
                 }
 
-                deltaHidden[j] = error * dSigmoid(hiddenLayer[j]);
+                deltaHidden[j] = error * dLeakyReLU(hiddenLayer[j]);
 
             }
 
@@ -162,6 +179,7 @@ int main() {
                 outputLayerBias[j] += deltaOutput[j] * learningRate;
                 for (int k = 0; k < numHiddenNodes; k++) {
                     outputWeights[k][j] += hiddenLayer[k] * deltaOutput[j] * learningRate;
+//                    printf("%f %f\n", hiddenLayer[k], deltaOutput[j]);
                 }
             }
 
@@ -179,7 +197,7 @@ int main() {
                 for (int k = 0; k < numInputs; k++) {
                     activation += trainX[x][k] * hiddenWeights[k][j]; // dot product
                 }
-                hiddenLayer[j] = sigmoid(activation);
+                hiddenLayer[j] = leakyReLU(activation);
             }
 
             for (int j = 0; j < numOutputs; j++) {
@@ -187,7 +205,7 @@ int main() {
                 for (int k = 0; k < numHiddenNodes; k++) {
                     activation += hiddenLayer[k] * outputWeights[k][j]; // dot product
                 }
-                outputLayer[j] = sigmoid(activation);
+                outputLayer[j] = leakyReLU(activation);
                 if (outputLayer[j] > 0.5f) {
                     outputLayer[j] = 1.0f;
                 }
@@ -217,7 +235,7 @@ int main() {
 //                myfile << hiddenWeights[k][j] << " ";
             }
 //            myfile << "\n";
-            hiddenLayer[j] = sigmoid(activation);
+            hiddenLayer[j] = leakyReLU(activation);
         }
 //        myfile.close();
 
@@ -226,7 +244,7 @@ int main() {
             for (int k = 0; k < numHiddenNodes; k++) {
                 activation += hiddenLayer[k] * outputWeights[k][j]; // dot product
             }
-            outputLayer[j] = sigmoid(activation);
+            outputLayer[j] = leakyReLU(activation);
 //            printf("final activation %f\n", activation);
             if (outputLayer[j] > 0.5f) { // argmax
                 outputLayer[j] = 1.0f;
