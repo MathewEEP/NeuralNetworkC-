@@ -25,12 +25,32 @@ import pandas as pd
 #
 # trainY = df.copy()
 # trainY = trainY["loan_status"]
+#
+# from sklearn.model_selection import train_test_split
+#
+# trainX, testX = train_test_split(pd.read_csv("trainX.csv"), test_size=0.2)
+# trainY, testY = train_test_split(pd.read_csv("trainY.csv"), test_size=0.2)
+# testX.to_csv("testX.csv", index=False)
+# testY.to_csv("testY.csv", index=False)
 # trainX.to_csv("trainX.csv", index=False)
 # trainY.to_csv("trainY.csv", index=False)
+#
+# testX, testY, trainX, trainY = pd.read_csv("testX.csv"), pd.read_csv("testY.csv"), pd.read_csv("trainX.csv"), pd.read_csv("trainY.csv")
+# print(testX.shape, testY.shape, trainX.shape, trainY.shape)
+from sklearn.neural_network import MLPClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix
 
+testX, testY, trainX, trainY = pd.read_csv("testX.csv"), pd.read_csv("testY.csv"), pd.read_csv("trainX.csv"), pd.read_csv("trainY.csv")
 
-df = pd.read_csv("trainX.csv")
-print(df.shape)
+clf = MLPClassifier(hidden_layer_sizes=(100), max_iter=50,activation = 'relu',solver='adam',random_state=1)
+clf.fit(trainX, trainY.values.ravel())
 
-print(df.head())
-print(df.info())
+def accuracy(confusion_matrix):
+    diagonal_sum = confusion_matrix.trace()
+    sum_of_all_elements = confusion_matrix.sum()
+    return diagonal_sum / sum_of_all_elements
+
+y_pred = clf.predict(testX)
+cm = confusion_matrix(y_pred, testY)
+print("Accuracy of MLPClassifier : ''", accuracy(cm))

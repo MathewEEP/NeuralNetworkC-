@@ -41,7 +41,6 @@ public: // error functions
     float meanSquaredError();
 
 public: // back propagation
-    void backPropagation();
     vector<float> outputLayerDelta();
 
     vector<vector<float>> hiddenLayerWeightsDerivative();
@@ -63,7 +62,7 @@ public:
     vector<float> forwardPropagation(vector<float> &input); // to test user input
 
 public:
-    NeuralNetwork(vector<vector<float>> trainX, vector<vector<float>> trainY, int numberHiddenLayerNodes);
+    NeuralNetwork(vector<vector<float>> trainX, vector<vector<float>> trainY, int numberHiddenLayerNodes, int rows, int columns);
 };
 
 
