@@ -4,6 +4,7 @@
 // http://galaxy.agh.edu.pl/~vlsi/AI/backp_t_en/backprop.html
 
 #include <cstdio>
+#include <iostream>
 #include <cmath>
 #include <fstream>
 #include <iterator>
@@ -21,7 +22,7 @@ const int numTestingSets = 5728;
 
 const double leakyReLUMultiplier = 0.01;
 
-void ReadData(string filenameX, string filenameY, vector<vector<double>>& X, vector<vector<double>>& Y) {
+void ReadData(const string& filenameX, const string& filenameY, vector<vector<double>>& X, vector<vector<double>>& Y) {
     ifstream src;
     src.open("/home/mathew/CLionProjects/NeuralNetwork/data/" + filenameX);
     string value;
@@ -55,7 +56,7 @@ void ReadData(string filenameX, string filenameY, vector<vector<double>>& X, vec
     src.close();
 }
 
-void ReadBias(string filename, vector<double>& bias) {
+void ReadBias(const string& filename, vector<double>& bias) {
     ifstream src;
     src.open("/home/mathew/CLionProjects/NeuralNetwork/models/" + filename);
     string value;
@@ -70,16 +71,16 @@ void ReadBias(string filename, vector<double>& bias) {
     src.close();
 }
 
-void SaveBias(string filename, vector<double>& bias) {
+void SaveBias(const string& filename, vector<double>& bias) {
     ofstream src;
     src.open("/home/mathew/CLionProjects/NeuralNetwork/models/" + filename);
-    for (int i = 0; i < bias.size(); i++) {
-        src << bias[i] << ",";
+    for (double b : bias) {
+        src << b << ",";
     }
     src.close();
 }
 
-void ReadWeights(string filename, vector<vector<double>>& weights) {
+void ReadWeights(const string& filename, vector<vector<double>>& weights) {
     ifstream src;
     src.open("/home/mathew/CLionProjects/NeuralNetwork/models/" + filename);
     string value;
@@ -96,12 +97,12 @@ void ReadWeights(string filename, vector<vector<double>>& weights) {
     src.close();
 }
 
-void SaveWeights(string filename, vector<vector<double>>& weights) {
+void SaveWeights(const string& filename, vector<vector<double>>& weights) {
     ofstream src;
     src.open("/home/mathew/CLionProjects/NeuralNetwork/models/" + filename);
-    for (int i = 0; i < weights.size(); i++) {
-        for (int j = 0; j < weights[i].size(); j++) {
-            src << weights[i][j] << ",";
+    for (auto & weight : weights) {
+        for (double j : weight) {
+            src << j << ",";
         }
         src << "\n";
     }
@@ -118,6 +119,26 @@ double dLeakyReLU(double x) {
         return 1;
     }
     return leakyReLUMultiplier;
+}
+
+vector<double> forward(vector<double>& input, vector<double>& hiddenLayerBias, vector<double>& outputLayerBias, vector<vector<double>>& hiddenWeights, vector<vector<double>>& outputWeights, vector<double> hiddenLayer, vector<double> outputLayer) {
+    for (int j = 0; j < numHiddenNodes; j++) {
+        double activation = hiddenLayerBias[j];
+        for (int k = 0; k < numInputs; k++) {
+            activation += input[k] * hiddenWeights[k][j]; // dot product
+        }
+        hiddenLayer[j] = leakyReLU(activation);
+    }
+
+    for (int j = 0; j < numOutputs; j++) {
+        double activation = outputLayerBias[j];
+        for (int k = 0; k < numHiddenNodes; k++) {
+            activation += hiddenLayer[k] * outputWeights[k][j]; // dot product
+        }
+        outputLayer[j] = leakyReLU(activation);
+    }
+
+    return outputLayer;
 }
 
 void train(int epochs, double learningRate, vector<double>& hiddenLayerBias, vector<double>& outputLayerBias, vector<vector<double>>& trainX, vector<vector<double>>& trainY, vector<vector<double>>& hiddenWeights, vector<vector<double>>& outputWeights, vector<double> hiddenLayer, vector<double> outputLayer) {
@@ -139,6 +160,14 @@ void train(int epochs, double learningRate, vector<double>& hiddenLayerBias, vec
                     activation += hiddenLayer[k] * outputWeights[k][j]; // dot product
                 }
                 outputLayer[j] = leakyReLU(activation); // was sigmoid
+
+                if (outputLayer[j] > 0.5f) {
+                    outputLayer[j] = 1.0f;
+                }
+                else {
+                    outputLayer[j] = 0.0f;
+                }
+                if (outputLayer[j] == trainY[x][j]) accuracy++;
             }
 
 //            printf("Output: %g\tPredicted Output: %g\n", outputLayer[x], trainY[x][0]);
@@ -205,13 +234,20 @@ void train(int epochs, double learningRate, vector<double>& hiddenLayerBias, vec
 //            }
 
         }
-        printf("Epoch %d\n", epoch);
+        printf("Epoch %d\tCorrect %f\tAccuracy %f\n", epoch, accuracy, accuracy/numTrainingSets);
     }
     SaveBias("1H100N200E/hiddenLayerBias.txt", hiddenLayerBias);
     SaveBias("1H100N200E/outputLayerBias.txt", outputLayerBias);
 
     SaveWeights("1H100N200E/hiddenWeights.txt", hiddenWeights);
     SaveWeights("1H100N200E/outputWeights.txt", outputWeights);
+}
+
+void importModel(const string& folder, vector<vector<double>>& hiddenWeights, vector<vector<double>>& outputWeights, vector<double>& hiddenLayerBias, vector<double>& outputLayerBias) {
+    ReadWeights(folder + "/hiddenWeights.txt", hiddenWeights);
+    ReadWeights(folder + "/outputWeights.txt", outputWeights);
+    ReadBias(folder + "/hiddenLayerBias.txt", hiddenLayerBias);
+    ReadBias(folder + "/outputLayerBias.txt", outputLayerBias);
 }
 
 void init_parameters(vector<vector<double>>& hiddenWeights, vector<vector<double>>& outputWeights, vector<double>& hiddenLayerBias, vector<double>& outputLayerBias) {
@@ -241,6 +277,20 @@ void init_parameters(vector<vector<double>>& hiddenWeights, vector<vector<double
     }
 }
 
+void importMinMaxInputValues(const string& filename, vector<double>& inputValues) {
+    ifstream src;
+    src.open("/home/mathew/CLionProjects/NeuralNetwork/data/" + filename);
+    string value;
+
+    getline(src, value);
+    int row = 0;
+    while (getline(src, value)) {
+        inputValues[row] = stod(value);
+        row += 1;
+    }
+    src.close();
+}
+
 int main() {
     const double learningRate = 0.001f;
     vector<double> hiddenLayer(numHiddenNodes);
@@ -261,51 +311,78 @@ int main() {
 
     ReadData("trainX.csv", "trainY.csv", trainX, trainY);
     ReadData("testX.csv", "testY.csv", testX, testY);
+//
+//    init_parameters(hiddenWeights, outputWeights, hiddenLayerBias, outputLayerBias);
+//    train(200, learningRate, hiddenLayerBias, outputLayerBias, trainX, trainY, hiddenWeights, outputWeights, hiddenLayer, outputLayer);
+    importModel("1H100N200E", hiddenWeights, outputWeights, hiddenLayerBias, outputLayerBias);
 
-    init_parameters(hiddenWeights, outputWeights, hiddenLayerBias, outputLayerBias);
-    train(50, learningRate, hiddenLayerBias, outputLayerBias, trainX, trainY, hiddenWeights, outputWeights, hiddenLayer, outputLayer);
+//    vector<double> input(numInputs);
+//    vector<double> output(numOutputs);
 //
-//    int correct = 0;
-//    // testing
-////    ofstream myfile;
-////    myfile.open("/home/mathew/CLionProjects/NeuralNetwork/example.txt");
+//    vector<double> minInputValues(numInputs);
+//    vector<double> maxInputValues(numInputs);
 //
-//    for (int x = 0; x < numTestingSets; x++) {
+//    importMinMaxInputValues("minInputValues.csv", minInputValues);
+//    importMinMaxInputValues("maxInputValues.csv", maxInputValues);
 //
-//
-//        // forward prop
-//        for (int j = 0; j < numHiddenNodes; j++) {
-//            double activation = hiddenLayerBias[j];
-//            for (int k = 0; k < numInputs; k++) {
-//                activation += testX[x][k] * hiddenWeights[k][j]; // dot product
-////                myfile << hiddenWeights[k][j] << " ";
-//            }
-////            myfile << "\n";
-//            hiddenLayer[j] = leakyReLU(activation);
+//    vector<string> columns = {"person_age", "person_income", "person_emp_length", "loan_amnt", "loan_int_rate", "loan_percent_income", "cb_person_cred_hist_length", "person_home_ownership_MORTGAGE", "person_home_ownership_OTHER", "person_home_ownership_OWN", "person_home_ownership_RENT", "loan_intent_DEBTCONSOLIDATION", "loan_intent_EDUCATION", "loan_intent_HOMEIMPROVEMENT", "loan_intent_MEDICAL", "loan_intent_PERSONAL", "loan_intent_VENTURE", "loan_grade_A", "loan_grade_B", "loan_grade_C", "loan_grade_D", "loan_grade_E", "loan_grade_F", "loan_grade_G", "cb_person_default_on_file_N", "cb_person_default_on_file_Y"};
+//    while (true) {
+//        for (int i = 0; i < numInputs; i++) {
+//            cout << columns[i] << ": ";
+//            cin >> input[i];
+//            input[i] = (input[i] - minInputValues[i]) / (maxInputValues[i] - minInputValues[i]); // min-max scaling
+//            cout << "Scaled input " << input[i] << "\n";
 //        }
-////        myfile.close();
-//
-//        for (int j = 0; j < numOutputs; j++) {
-//            double activation = outputLayerBias[j];
-//            for (int k = 0; k < numHiddenNodes; k++) {
-//                activation += hiddenLayer[k] * outputWeights[k][j]; // dot product
-//            }
-//            outputLayer[j] = leakyReLU(activation);
-////            printf("final activation %f\n", activation);
-//            if (outputLayer[j] > 0.5f) { // argmax
-//                outputLayer[j] = 1.0f;
-//            }
-//            else {
-//                outputLayer[j] = 0.0f;
-//            }
-//        }
-//
-//        for (int j = 0; j < numOutputs; j++) {
-//            if (outputLayer[0] == trainY[x][0]) {
-//                correct++;
-//            }
+//        output = forward(input, hiddenLayerBias, outputLayerBias, hiddenWeights, outputWeights, hiddenLayer, outputLayer);
+//        for (int i = 0; i < numOutputs; i++) {
+//            cout << "Predicted output: " << output[i] << "\n";
 //        }
 //    }
-//    printf("Correct %d out of %d", correct, numTestingSets);
+
+
+
+    int correct = 0;
+    // testing
+//    ofstream myfile;
+//    myfile.open("/home/mathew/CLionProjects/NeuralNetwork/example.txt");
+
+    for (int x = 0; x < numTestingSets; x++) {
+
+
+        // forward prop
+        for (int j = 0; j < numHiddenNodes; j++) {
+            double activation = hiddenLayerBias[j];
+            for (int k = 0; k < numInputs; k++) {
+                activation += testX[x][k] * hiddenWeights[k][j]; // dot product
+//                myfile << hiddenWeights[k][j] << " ";
+            }
+//            myfile << "\n";
+            hiddenLayer[j] = leakyReLU(activation);
+        }
+//        myfile.close();
+
+        for (int j = 0; j < numOutputs; j++) {
+            double activation = outputLayerBias[j];
+            for (int k = 0; k < numHiddenNodes; k++) {
+                activation += hiddenLayer[k] * outputWeights[k][j]; // dot product
+            }
+            outputLayer[j] = leakyReLU(activation);
+//            printf("final activation %f\n", activation);
+            if (outputLayer[j] > 0.5f) { // argmax
+                outputLayer[j] = 1.0f;
+                cout << "INDEX: " << x << "\n";
+            }
+            else {
+                outputLayer[j] = 0.0f;
+            }
+        }
+
+        for (int j = 0; j < numOutputs; j++) {
+            if (outputLayer[0] == trainY[x][0]) {
+                correct++;
+            }
+        }
+    }
+    printf("Correct %d out of %d", correct, numTestingSets);
 }
 
