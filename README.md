@@ -1,3 +1,4 @@
+DOES NOT WORK, I MESSED IT UP
 Neural Network from Scratch in C++
 
 Followed/watched from:
@@ -5,3 +6,4 @@ Followed/watched from:
 https://www.youtube.com/watch?v=w8yWXqWQYmU
 
 https://www.youtube.com/watch?v=-zI1bldB8to
+
