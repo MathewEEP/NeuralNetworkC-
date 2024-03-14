@@ -1,5 +1,9 @@
-DOES NOT WORK, I MESSED IT UP
 Neural Network from Scratch in C++
+
+Things I want to improve:
+- Low accuracy
+- Add more hidden layers
+- Better datapreprocessing
 
 Followed/watched from:
 
