@@ -1,7 +1,5 @@
-//
-// Created by mathew on 2/17/24.
 // Followed tutorial https://www.youtube.com/watch?v=LA4I3cWkp1E
-// http://galaxy.agh.edu.pl/~vlsi/AI/backp_t_en/backprop.html
+// This is helpful http://galaxy.agh.edu.pl/~vlsi/AI/backp_t_en/backprop.html
 
 #include <cstdio>
 #include <iostream>
@@ -14,11 +12,11 @@
 
 using namespace std;
 
-const int numInputs = 26;
-const int numHiddenNodes = 100;
+const int numInputs = 14;
+const int numHiddenNodes = 10;
 const int numOutputs = 1;
-const int numTrainingSets = 22910;
-const int numTestingSets = 5728;
+const int numTrainingSets = 9924;
+const int numTestingSets = 2482;
 
 const double leakyReLUMultiplier = 0.01;
 
@@ -45,12 +43,11 @@ void ReadData(const string& filenameX, const string& filenameY, vector<vector<do
     src.close();
 
     src.open("/home/mathew/CLionProjects/NeuralNetwork/data/" + filenameY);
-//    printf("IS OPEN %B\n", src.is_open());
+
     getline(src, value);
     row = 0;
     while (getline(src, value)) {
         Y[row][0] = stod(value);
-//        printf("%f ", stod(value));
         row += 1;
     }
     src.close();
@@ -65,7 +62,6 @@ void ReadBias(const string& filename, vector<double>& bias) {
     int idx = 0;
     while (getline(input, value, ',')) {
         bias[idx] = stod(value);
-//        printf("VALUE %f %f %d\n", stod(value), bias[idx], idx);
         idx += 1;
     }
     src.close();
@@ -90,7 +86,6 @@ void ReadWeights(const string& filename, vector<vector<double>>& weights) {
         int idx = 0;
         while (getline(input, value, ',')) {
             weights[row][idx] = stod(value);
-//        printf("VALUE %f %f %d\n", stod(value), bias[idx], idx);
             idx += 1;
         }
     }
@@ -109,6 +104,7 @@ void SaveWeights(const string& filename, vector<vector<double>>& weights) {
     src.close();
 }
 
+// activation functions and their derivatives
 double sigmoid(double x) { return (1 / (1 + exp(-x))); }
 double dSigmoid(double x) { return x * (1 - x); }
 double leakyReLU(double x) {
@@ -120,8 +116,23 @@ double dLeakyReLU(double x) {
     }
     return leakyReLUMultiplier;
 }
+double ReLU(double x) {
+    return max(x, 0.0);
+}
+double dReLU(double x) {
+    return x > 0.0;
+}
+
+double tanH(double x) {
+    return (exp(2 * x) - 1) / (exp(2 * x) + 1);
+}
+double dTanH(double x) {
+    return (1 - pow(x, 2));
+}
+
 
 vector<double> forward(vector<double>& input, vector<double>& hiddenLayerBias, vector<double>& outputLayerBias, vector<vector<double>>& hiddenWeights, vector<vector<double>>& outputWeights, vector<double> hiddenLayer, vector<double> outputLayer) {
+    // forward propagation for one observation
     for (int j = 0; j < numHiddenNodes; j++) {
         double activation = hiddenLayerBias[j];
         for (int k = 0; k < numInputs; k++) {
@@ -135,21 +146,24 @@ vector<double> forward(vector<double>& input, vector<double>& hiddenLayerBias, v
         for (int k = 0; k < numHiddenNodes; k++) {
             activation += hiddenLayer[k] * outputWeights[k][j]; // dot product
         }
-        outputLayer[j] = leakyReLU(activation);
+        outputLayer[j] = tanH(activation);
     }
 
     return outputLayer;
 }
 
 void train(int epochs, double learningRate, vector<double>& hiddenLayerBias, vector<double>& outputLayerBias, vector<vector<double>>& trainX, vector<vector<double>>& trainY, vector<vector<double>>& hiddenWeights, vector<vector<double>>& outputWeights, vector<double> hiddenLayer, vector<double> outputLayer) {
+    // function to train the NN
     for (int epoch = 0; epoch < epochs; epoch++) {
         double accuracy = 0;
+        double avgError = 0;
         for (int x = 0; x < numTrainingSets; x++) {
             // forward prop
             for (int j = 0; j < numHiddenNodes; j++) {
                 double activation = hiddenLayerBias[j];
                 for (int k = 0; k < numInputs; k++) {
                     activation += trainX[x][k] * hiddenWeights[k][j]; // dot product
+
                 }
                 hiddenLayer[j] = leakyReLU(activation);
             }
@@ -159,26 +173,19 @@ void train(int epochs, double learningRate, vector<double>& hiddenLayerBias, vec
                 for (int k = 0; k < numHiddenNodes; k++) {
                     activation += hiddenLayer[k] * outputWeights[k][j]; // dot product
                 }
-                outputLayer[j] = leakyReLU(activation); // was sigmoid
+                outputLayer[j] = tanh(activation);
 
-                if (outputLayer[j] > 0.5f) {
-                    outputLayer[j] = 1.0f;
+                if ((outputLayer[j] > 0.5f && trainY[x][j] == 1) || (outputLayer[j] < 0.5f && trainY[x][j] == 0)) { // calculate accuracy using argmax
+                    accuracy++;
                 }
-                else {
-                    outputLayer[j] = 0.0f;
-                }
-                if (outputLayer[j] == trainY[x][j]) accuracy++;
+                avgError += pow(outputLayer[j] - trainY[x][j], 2.0); // calculate error
             }
 
-//            printf("Output: %g\tPredicted Output: %g\n", outputLayer[x], trainY[x][0]);
-            // back prop
             vector<double> deltaOutput(numOutputs);
 
             for (int j = 0; j < numOutputs; j++) {
                 double error = (trainY[x][j] - outputLayer[j]);
-//                printf("ERROR %f\t", error);
-                deltaOutput[j] = error * dLeakyReLU(outputLayer[j]); // * dSigmoid(outputLayer[j]) (DEAD NEURON.... https://www.linkedin.com/advice/3/how-do-you-debug-dead-neurons-neural-network-gqxxc)
-//                printf("ADD %f %f %f\n", trainY[x][j], outputLayer[j], dSigmoid(outputLayer[j]));
+                deltaOutput[j] = error; // problems with a dead neuron https://www.linkedin.com/advice/3/how-do-you-debug-dead-neurons-neural-network-gqxxc
             }
 
             vector<double> deltaHidden(numHiddenNodes);
@@ -186,18 +193,14 @@ void train(int epochs, double learningRate, vector<double>& hiddenLayerBias, vec
                 double error = 0.0f;
                 for (int k = 0; k < numOutputs; k++) {
                     error += deltaOutput[k] * outputWeights[j][k];
-//                    printf("%f %f\n", deltaOutput[k], outputWeights[j][k]);
                 }
-
-                deltaHidden[j] = error * dLeakyReLU(hiddenLayer[j]);
-
+                deltaHidden[j] = error; //  * dLeakyReLU(hiddenLayer[j]) (took out derivative of activation function to help the model converge faster)
             }
 
             for (int j = 0; j < numOutputs; j++) {
                 outputLayerBias[j] += deltaOutput[j] * learningRate;
                 for (int k = 0; k < numHiddenNodes; k++) {
-                    outputWeights[k][j] += hiddenLayer[k] * deltaOutput[j] * learningRate;
-//                    printf("%f %f\n", hiddenLayer[k], deltaOutput[j]);
+                    outputWeights[k][j] += outputWeights[k][j] * deltaOutput[j] * learningRate;
                 }
             }
 
@@ -205,38 +208,12 @@ void train(int epochs, double learningRate, vector<double>& hiddenLayerBias, vec
                 hiddenLayerBias[j] += deltaHidden[j] * learningRate;
                 for (int k = 0; k < numInputs; k++) {
                     hiddenWeights[k][j] += trainX[x][k] * deltaHidden[j] * learningRate;
-//                    printf("ADD %f", deltaHidden[j]);
                 }
             }
-
-//            // calculate accuracy
-//            for (int j = 0; j < numHiddenNodes; j++) {
-//                double activation = hiddenLayerBias[j];
-//                for (int k = 0; k < numInputs; k++) {
-//                    activation += trainX[x][k] * hiddenWeights[k][j]; // dot product
-//                }
-//                hiddenLayer[j] = leakyReLU(activation);
-//            }
-//
-//            for (int j = 0; j < numOutputs; j++) {
-//                double activation = outputLayerBias[j];
-//                for (int k = 0; k < numHiddenNodes; k++) {
-//                    activation += hiddenLayer[k] * outputWeights[k][j]; // dot product
-//                }
-//                outputLayer[j] = leakyReLU(activation);
-//                if (outputLayer[j] > 0.5f) {
-//                    outputLayer[j] = 1.0f;
-//                }
-//                else {
-//                    outputLayer[j] = 0.0f;
-//                }
-//                if (outputLayer[j] == trainY[x][j]) accuracy++;
-//            }
-
         }
-        printf("Epoch %d\tCorrect %f\tAccuracy %f\n", epoch, accuracy, accuracy/numTrainingSets);
+        printf("Epoch %d\tAccuracy %f\tAverage Error %f\n", epoch, accuracy/numTrainingSets, avgError/numTrainingSets);
     }
-    SaveBias("1H100N200E/hiddenLayerBias.txt", hiddenLayerBias);
+    SaveBias("1H100N200E/hiddenLayerBias.txt", hiddenLayerBias); // naming convention for folder is # hidden layers, # neurons in hidden layers, # epochs
     SaveBias("1H100N200E/outputLayerBias.txt", outputLayerBias);
 
     SaveWeights("1H100N200E/hiddenWeights.txt", hiddenWeights);
@@ -254,26 +231,27 @@ void init_parameters(vector<vector<double>>& hiddenWeights, vector<vector<double
     const unsigned int seed = time(nullptr);
     mt19937_64 rng(seed);
 
-    uniform_real_distribution<float> unif(0.0, 1.0);
-
+    uniform_real_distribution<float> bias(0.0, 1.0);
+    normal_distribution<double> hidden(0.0, sqrt(2.0/numInputs)); // saw this formula recommended online to randomly initialize weights
+    normal_distribution<double> output(0.0, sqrt(2.0/numHiddenNodes));
     for (int i = 0; i < numInputs; i++) {
         for (int j = 0; j < numHiddenNodes; j++) {
-            hiddenWeights[i][j] = unif(rng);
+            hiddenWeights[i][j] = hidden(rng);
         }
     }
 
     for (int i = 0; i < numHiddenNodes; i++) {
         for (int j = 0; j < numOutputs; j++) {
-            outputWeights[i][j] = unif(rng);
+            outputWeights[i][j] = output(rng);
         }
     }
 
     for (int j = 0; j < numOutputs; j++) {
-        outputLayerBias[j] = unif(rng);
+        outputLayerBias[j] = bias(rng);
     }
 
     for (int j = 0; j < numHiddenNodes; j++) {
-        hiddenLayerBias[j] = unif(rng);
+        hiddenLayerBias[j] = bias(rng);
     }
 }
 
@@ -291,8 +269,65 @@ void importMinMaxInputValues(const string& filename, vector<double>& inputValues
     src.close();
 }
 
+void test(vector<double>& hiddenLayerBias, vector<double>& outputLayerBias, vector<vector<double>>& testX, vector<vector<double>>& testY, vector<vector<double>>& hiddenWeights, vector<vector<double>>& outputWeights, vector<double> hiddenLayer, vector<double> outputLayer) {
+    // this function will test the neural network
+    int correct = 0;
+    double avgError = 0;
+
+    for (int x = 0; x < numTestingSets; x++) {
+        // forward prop
+        for (int j = 0; j < numHiddenNodes; j++) {
+            double activation = hiddenLayerBias[j];
+            for (int k = 0; k < numInputs; k++) {
+                activation += testX[x][k] * hiddenWeights[k][j]; // dot product
+            }
+            hiddenLayer[j] = leakyReLU(activation);
+        }
+
+        for (int j = 0; j < numOutputs; j++) {
+            double activation = outputLayerBias[j];
+            for (int k = 0; k < numHiddenNodes; k++) {
+                activation += hiddenLayer[k] * outputWeights[k][j]; // dot product
+            }
+            outputLayer[j] = tanh(activation);
+            if (outputLayer[j] > 0.5f) { // argmax
+                outputLayer[j] = 1.0f;
+            }
+            else {
+                outputLayer[j] = 0.0f;
+            }
+        }
+
+        for (int j = 0; j < numOutputs; j++) {
+            if (outputLayer[0] == testY[x][0]) {
+                correct++;
+            }
+            avgError += pow(outputLayer[0] - testY[x][0], 2.0);
+        }
+    }
+    printf("Accuracy %d\tAvg error %f", correct/numTestingSets, avgError/numTestingSets);
+}
+
+void liveTest(vector<double>& minInputValues, vector<double>& maxInputValues, vector<double>& hiddenLayerBias, vector<double>& outputLayerBias, vector<double>& input, vector<double>& output, vector<vector<double>>& hiddenWeights, vector<vector<double>>& outputWeights, vector<double>& hiddenLayer, vector<double>& outputLayer) {
+    // this function takes in live inputs using a Scanner
+    vector<string> columns = {"person_age", "person_income", "person_emp_length", "loan_amnt", "loan_int_rate", "loan_percent_income", "cb_person_cred_hist_length", "person_home_ownership_MORTGAGE", "person_home_ownership_OTHER", "person_home_ownership_OWN", "person_home_ownership_RENT", "loan_intent_DEBTCONSOLIDATION", "loan_intent_EDUCATION", "loan_intent_HOMEIMPROVEMENT", "loan_intent_MEDICAL", "loan_intent_PERSONAL", "loan_intent_VENTURE", "loan_grade_A", "loan_grade_B", "loan_grade_C", "loan_grade_D", "loan_grade_E", "loan_grade_F", "loan_grade_G", "cb_person_default_on_file_N", "cb_person_default_on_file_Y"};
+    cout << "Taking inputs now\n";
+    while (true) {
+        for (int i = 0; i < numInputs; i++) {
+            cout << columns[i] << ": ";
+            cin >> input[i];
+            input[i] = (input[i] - minInputValues[i]) / (maxInputValues[i] - minInputValues[i]); // min-max scaling
+            cout << "Scaled input " << input[i] << "\n";
+        }
+        output = forward(input, hiddenLayerBias, outputLayerBias, hiddenWeights, outputWeights, hiddenLayer, outputLayer);
+        for (int i = 0; i < numOutputs; i++) {
+            cout << "Predicted output: " << output[i] << "\n";
+        }
+    }
+}
+
 int main() {
-    const double learningRate = 0.001f;
+    const double learningRate = 0.01; // alpha
     vector<double> hiddenLayer(numHiddenNodes);
     vector<double> outputLayer(numOutputs);
 
@@ -304,85 +339,26 @@ int main() {
 
     vector<vector<double>> trainX(numTrainingSets, vector<double>(numInputs));
     vector<vector<double>> trainY(numTrainingSets, vector<double>(numOutputs));
-//    printf("%zu %zu", trainY.size(), trainY[0].size());
 
     vector<vector<double>> testX(numTestingSets, vector<double>(numInputs));
     vector<vector<double>> testY(numTestingSets, vector<double>(numOutputs));
 
     ReadData("trainX.csv", "trainY.csv", trainX, trainY);
     ReadData("testX.csv", "testY.csv", testX, testY);
-//
-//    init_parameters(hiddenWeights, outputWeights, hiddenLayerBias, outputLayerBias);
-//    train(200, learningRate, hiddenLayerBias, outputLayerBias, trainX, trainY, hiddenWeights, outputWeights, hiddenLayer, outputLayer);
-    importModel("1H100N200E", hiddenWeights, outputWeights, hiddenLayerBias, outputLayerBias);
 
-//    vector<double> input(numInputs);
-//    vector<double> output(numOutputs);
-//
-//    vector<double> minInputValues(numInputs);
-//    vector<double> maxInputValues(numInputs);
-//
-//    importMinMaxInputValues("minInputValues.csv", minInputValues);
-//    importMinMaxInputValues("maxInputValues.csv", maxInputValues);
-//
-//    vector<string> columns = {"person_age", "person_income", "person_emp_length", "loan_amnt", "loan_int_rate", "loan_percent_income", "cb_person_cred_hist_length", "person_home_ownership_MORTGAGE", "person_home_ownership_OTHER", "person_home_ownership_OWN", "person_home_ownership_RENT", "loan_intent_DEBTCONSOLIDATION", "loan_intent_EDUCATION", "loan_intent_HOMEIMPROVEMENT", "loan_intent_MEDICAL", "loan_intent_PERSONAL", "loan_intent_VENTURE", "loan_grade_A", "loan_grade_B", "loan_grade_C", "loan_grade_D", "loan_grade_E", "loan_grade_F", "loan_grade_G", "cb_person_default_on_file_N", "cb_person_default_on_file_Y"};
-//    while (true) {
-//        for (int i = 0; i < numInputs; i++) {
-//            cout << columns[i] << ": ";
-//            cin >> input[i];
-//            input[i] = (input[i] - minInputValues[i]) / (maxInputValues[i] - minInputValues[i]); // min-max scaling
-//            cout << "Scaled input " << input[i] << "\n";
-//        }
-//        output = forward(input, hiddenLayerBias, outputLayerBias, hiddenWeights, outputWeights, hiddenLayer, outputLayer);
-//        for (int i = 0; i < numOutputs; i++) {
-//            cout << "Predicted output: " << output[i] << "\n";
-//        }
-//    }
+    init_parameters(hiddenWeights, outputWeights, hiddenLayerBias, outputLayerBias);
+    train(80, learningRate, hiddenLayerBias, outputLayerBias, trainX, trainY, hiddenWeights, outputWeights, hiddenLayer, outputLayer);
+//    importModel("1H100N200E", hiddenWeights, outputWeights, hiddenLayerBias, outputLayerBias);
+    test(hiddenLayerBias, outputLayerBias, testX, testY, hiddenWeights, outputWeights, hiddenLayer, outputLayer);
 
+    vector<double> input(numInputs);
+    vector<double> output(numOutputs);
 
+    vector<double> minInputValues(numInputs); // min/max values for scaling purposes of the live test
+    vector<double> maxInputValues(numInputs); // this is because the data was scaled using min/max for training the NN
 
-    int correct = 0;
-    // testing
-//    ofstream myfile;
-//    myfile.open("/home/mathew/CLionProjects/NeuralNetwork/example.txt");
-
-    for (int x = 0; x < numTestingSets; x++) {
-
-
-        // forward prop
-        for (int j = 0; j < numHiddenNodes; j++) {
-            double activation = hiddenLayerBias[j];
-            for (int k = 0; k < numInputs; k++) {
-                activation += testX[x][k] * hiddenWeights[k][j]; // dot product
-//                myfile << hiddenWeights[k][j] << " ";
-            }
-//            myfile << "\n";
-            hiddenLayer[j] = leakyReLU(activation);
-        }
-//        myfile.close();
-
-        for (int j = 0; j < numOutputs; j++) {
-            double activation = outputLayerBias[j];
-            for (int k = 0; k < numHiddenNodes; k++) {
-                activation += hiddenLayer[k] * outputWeights[k][j]; // dot product
-            }
-            outputLayer[j] = leakyReLU(activation);
-//            printf("final activation %f\n", activation);
-            if (outputLayer[j] > 0.5f) { // argmax
-                outputLayer[j] = 1.0f;
-                cout << "INDEX: " << x << "\n";
-            }
-            else {
-                outputLayer[j] = 0.0f;
-            }
-        }
-
-        for (int j = 0; j < numOutputs; j++) {
-            if (outputLayer[0] == trainY[x][0]) {
-                correct++;
-            }
-        }
-    }
-    printf("Correct %d out of %d", correct, numTestingSets);
+    importMinMaxInputValues("minInputValues.csv", minInputValues);
+    importMinMaxInputValues("maxInputValues.csv", maxInputValues);
+    liveTest(minInputValues, maxInputValues, hiddenLayerBias, outputLayerBias, input, output, hiddenWeights, outputWeights, hiddenLayer, outputLayer) {
 }
 
