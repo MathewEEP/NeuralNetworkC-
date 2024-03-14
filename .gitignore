@@ -1,1 +1,3 @@
 *.IGNOREFILE
+cmake-build-debug/
+.idea/
